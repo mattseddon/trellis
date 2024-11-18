@@ -1,2 +1,2 @@
 # trellis
-Prime factorization endpoints 
+Prime factorization endpoints
