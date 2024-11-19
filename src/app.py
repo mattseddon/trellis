@@ -6,9 +6,9 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-data_store: dict[str, dict[str, int]] = {}
+data_store: dict[int, dict[str, int]] = {}
 request_counter = 1
-queues: dict[str, deque] = {}
+queues: dict[str, deque[tuple[int, int]]] = {}
 stop_event = asyncio.Event()
 
 
@@ -45,14 +45,28 @@ def get_prime_factorization(request_id):
     return jsonify({"number": number}), 200
 
 
+def process_oldest_client_item(queue: deque[tuple[int, int]]):
+    request_id, number = queue.popleft()
+    prime_factors = sympy.factorint(number)
+    data_store[request_id] = prime_factors
+
+
 async def process_queues():
+    to_delete = []
     while not stop_event.is_set():
-        for queue in queues.values():
-            # take first item from each of the queues
-            request_id, number = queue.popleft()
-            prime_factors = sympy.factorint(number)
-            data_store[request_id] = prime_factors
-        await asyncio.sleep(1)
+        for caller_id, queue in queues.items():
+            if not queue:
+                to_delete.append(caller_id)
+                continue
+
+            process_oldest_client_item(queue)
+
+        while to_delete:
+            caller_id = to_delete.pop()
+            del queues[caller_id]
+
+        if not queues:
+            await asyncio.sleep(1)
 
 
 def stop_process_queues():
