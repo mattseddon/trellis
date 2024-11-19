@@ -49,6 +49,22 @@ def test_invalid_request_prime_factorization(client):
     assert "error" in data
     assert data["error"] == "No caller_id provided"
 
+    response = client.post(
+        "/request_prime_factorization", json={"number": "a", "caller_id": 100}
+    )
+    assert response.status_code == 400
+    data = response.get_json()
+    assert "error" in data
+    assert data["error"] == "Number must be an integer"
+
+    response = client.post(
+        "/request_prime_factorization", json={"number": 10, "caller_id": "a"}
+    )
+    assert response.status_code == 400
+    data = response.get_json()
+    assert "error" in data
+    assert data["error"] == "caller_id is invalid"
+
 
 def test_get_prime_factors(client, event_loop):
     task = event_loop.create_task(process_queues())
@@ -75,3 +91,6 @@ def test_invalid_get_prime_factors_request_id(client):
     data = response.get_json()
     assert "error" in data
     assert data["error"] == "Invalid request_id"
+
+    response = client.get("/prime_factors/a")
+    assert response.status_code == 404

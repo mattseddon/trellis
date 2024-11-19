@@ -6,6 +6,7 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
+
 data_store: dict[int, dict[str, int]] = {}
 request_counter = 1
 queues: dict[str, deque[tuple[int, int]]] = {}
@@ -16,13 +17,22 @@ stop_event = asyncio.Event()
 def request_prime_factorization():
     global request_counter
 
+    valid_callers = [100, 200, 300]
+
     number = request.json.get("number")
     caller_id = request.json.get("caller_id")
+
     if number is None:
         return jsonify({"error": "No number provided"}), 400
 
     if caller_id is None:
         return jsonify({"error": "No caller_id provided"}), 400
+
+    if not isinstance(number, int):
+        return jsonify({"error": "Number must be an integer"}), 400
+
+    if caller_id not in valid_callers:
+        return jsonify({"error": "caller_id is invalid"}), 400
 
     request_id = request_counter
 
@@ -38,8 +48,7 @@ def request_prime_factorization():
 
 @app.route("/prime_factors/<int:request_id>", methods=["GET"])
 def get_prime_factorization(request_id):
-    number = data_store.get(request_id)
-    if number is None:
+    if not (number := data_store.get(request_id)):
         return jsonify({"error": "Invalid request_id"}), 404
 
     return jsonify({"number": number}), 200
