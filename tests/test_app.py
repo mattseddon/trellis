@@ -33,7 +33,7 @@ def test_request_prime_factorization(client):
     assert response.status_code == 200
     data = response.get_json()
     assert "request_id" in data
-    assert isinstance(data["request_id"], int)
+    assert isinstance(data["request_id"], str)
 
 
 def test_invalid_request_prime_factorization(client):
@@ -94,3 +94,6 @@ def test_invalid_get_prime_factors_request_id(client):
 
     response = client.get("/prime_factors/a")
     assert response.status_code == 404
+    data = response.get_json()
+    assert "error" in data
+    assert data["error"] == "Invalid request_id"
