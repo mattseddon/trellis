@@ -1,5 +1,8 @@
+import asyncio
+
 import pytest
-from app import app
+
+from app import app, process_queues, stop_process_queues
 
 
 @pytest.fixture
@@ -9,8 +12,24 @@ def client():
         yield client
 
 
+@pytest.fixture
+def event_loop():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    yield loop
+    loop.close()
+
+
+def process_and_stop_queues(event_loop, task):
+    event_loop.run_until_complete(asyncio.sleep(1))
+    stop_process_queues()
+    event_loop.run_until_complete(task)
+
+
 def test_request_prime_factorization(client):
-    response = client.post("/request_prime_factorization", json={"number": 42})
+    response = client.post(
+        "/request_prime_factorization", json={"caller_id": 100, "number": 42}
+    )
     assert response.status_code == 200
     data = response.get_json()
     assert "request_id" in data
@@ -24,14 +43,25 @@ def test_invalid_request_prime_factorization(client):
     assert "error" in data
     assert data["error"] == "No number provided"
 
+    response = client.post("/request_prime_factorization", json={"number": 10})
+    assert response.status_code == 400
+    data = response.get_json()
+    assert "error" in data
+    assert data["error"] == "No caller_id provided"
 
-def test_get_prime_factors(client):
-    response = client.post("/request_prime_factorization", json={"number": 42})
+
+def test_get_prime_factors(client, event_loop):
+    task = event_loop.create_task(process_queues())
+    response = client.post(
+        "/request_prime_factorization", json={"caller_id": 100, "number": 42}
+    )
     assert response.status_code == 200
     data = response.get_json()
     request_id = data["request_id"]
 
     assert request_id
+    process_and_stop_queues(event_loop, task)
+
     response = client.get(f"/prime_factors/{request_id}")
     assert response.status_code == 200
     data = response.get_json()
